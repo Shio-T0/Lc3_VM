@@ -7,11 +7,10 @@ int main() {
   if (!out)
     return 1;
 
-  uint8_t program[] = {
-      0x01, 0x0A, // LD A, 10
-      0x02, 0x05, // ADD A, 5
-      0x02, 0x03  // ADD A, 3
-  };
+  uint16_t program[] = {0x2203, // LD reg1, OFFSET 3 -> 10
+                        0x1265, // ADD A, 5
+                        0x1263, // ADD A, 3
+                        0x000A};
 
   out.write(reinterpret_cast<char *>(program), sizeof(program));
   out.close();
