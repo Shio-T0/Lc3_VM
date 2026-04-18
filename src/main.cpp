@@ -1,4 +1,3 @@
-
 #include <array>
 #include <cstdint>
 #include <fstream>
@@ -11,6 +10,7 @@ enum {
   ADD = 1,
   LD = 2,
   LDR = 6,
+  ST = 3,
 };
 
 std::array<uint16_t, 8> REGISTERS;
@@ -20,6 +20,7 @@ std::vector<uint16_t> MEMORY;
 void runAdd(uint16_t word);
 void runLd(uint16_t word);
 void runLdr(uint16_t word);
+void runSt(uint16_t word);
 int main(int argc, char *argv[]) {
 
   for (int i = 1; i < argc; i++) {
@@ -50,6 +51,9 @@ int main(int argc, char *argv[]) {
         break;
       case LDR:
         runLdr(word);
+        break;
+      case ST:
+        runSt(word);
         break;
       }
       PC++;
@@ -86,4 +90,11 @@ void runLdr(uint16_t word) {
   std::cout << "Loading " << MEMORY[base + offset] << " into "
             << REGISTERS[dest] << std::endl;
   REGISTERS[dest] = MEMORY[base + offset];
+}
+void runSt(uint16_t word) {
+  uint16_t source = (word & 0b0000111000000000) >> 9;
+  uint16_t offset = word & 0b0000000111111111;
+  std::cout << "Storing " << REGISTERS[source] << " into "
+            << MEMORY[PC + offset] << std::endl;
+  MEMORY[PC + offset] = REGISTERS[source];
 }
