@@ -11,6 +11,7 @@ enum {
   LD = 2,
   LDR = 6,
   ST = 3,
+  STR = 7,
 };
 
 std::array<uint16_t, 8> REGISTERS;
@@ -21,6 +22,7 @@ void runAdd(uint16_t word);
 void runLd(uint16_t word);
 void runLdr(uint16_t word);
 void runSt(uint16_t word);
+void runStr(uint16_t word);
 int main(int argc, char *argv[]) {
 
   for (int i = 1; i < argc; i++) {
@@ -55,6 +57,9 @@ int main(int argc, char *argv[]) {
       case ST:
         runSt(word);
         break;
+      case STR:
+        runStr(word);
+        break;
       }
       PC++;
     }
@@ -87,9 +92,9 @@ void runLdr(uint16_t word) {
   uint16_t dest = (word & 0b0000111000000000) >> 9;
   uint16_t base = (word & 0b0000000111000000) >> 6;
   uint16_t offset = word & 0b0000000000111111;
-  std::cout << "Loading " << MEMORY[base + offset] << " into "
+  std::cout << "Loading " << MEMORY[REGISTERS[base] + offset] << " into "
             << REGISTERS[dest] << std::endl;
-  REGISTERS[dest] = MEMORY[base + offset];
+  REGISTERS[dest] = MEMORY[REGISTERS[base] + offset];
 }
 void runSt(uint16_t word) {
   uint16_t source = (word & 0b0000111000000000) >> 9;
@@ -97,4 +102,12 @@ void runSt(uint16_t word) {
   std::cout << "Storing " << REGISTERS[source] << " into "
             << MEMORY[PC + offset] << std::endl;
   MEMORY[PC + offset] = REGISTERS[source];
+}
+void runStr(uint16_t word) {
+  uint16_t source = (word & 0b0000111000000000) >> 9;
+  uint16_t base = (word & 0b0000000111000000) >> 6;
+  uint16_t offset = word & 0b0000000000111111;
+  std::cout << "Storing " << REGISTERS[source] << " into "
+            << MEMORY[REGISTERS[base] + offset] << std::endl;
+  MEMORY[REGISTERS[base] + offset] = REGISTERS[source];
 }
