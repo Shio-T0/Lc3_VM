@@ -4,10 +4,10 @@
 #include <ios>
 #include <iostream>
 #include <ostream>
-#include <system_error>
 #include <vector>
 
 enum {
+  BR = 0,
   ADD = 1,
   LD = 2,
   ST = 3,
@@ -18,23 +18,24 @@ enum {
   STI = 11,
   JMP = 12,
   LEA = 14,
-
 };
 
-std::array<uint16_t, 8> REGISTERS;
+using Word = uint16_t;
+std::array<Word, 8> REGISTERS;
 int PC = 0;
-std::vector<uint16_t> MEMORY;
+std::vector<Word> MEMORY;
 
-void runAdd(uint16_t word);
-void runLd(uint16_t word);
-void runLdr(uint16_t word);
-void runSt(uint16_t word);
-void runStr(uint16_t word);
-void runLdi(uint16_t word);
-void runSti(uint16_t word);
-void runLea(uint16_t word);
-void runJmp(uint16_t word);
-void runJsr(uint16_t word);
+void runBr(Word word);
+void runAdd(Word word);
+void runLd(Word word);
+void runLdr(Word word);
+void runSt(Word word);
+void runStr(Word word);
+void runLdi(Word word);
+void runSti(Word word);
+void runLea(Word word);
+void runJmp(Word word);
+void runJsr(Word word);
 int main(int argc, char *argv[]) {
 
   for (int i = 1; i < argc; i++) {
@@ -46,7 +47,7 @@ int main(int argc, char *argv[]) {
       return 1;
     };
 
-    uint16_t value = 0;
+    Word value = 0;
     while (program.read(reinterpret_cast<char *>(&value), 2)) {
       MEMORY.push_back(value);
     }
@@ -54,9 +55,12 @@ int main(int argc, char *argv[]) {
     program.close();
     std::cout << "file closed" << std::endl;
 
-    for (uint16_t word : MEMORY) {
+    for (Word word : MEMORY) {
       std::cout << word << std::endl;
       switch (word >> 12) {
+      case BR:
+        runBr(word);
+        break;
       case ADD:
         runAdd(word);
         break;
@@ -93,84 +97,97 @@ int main(int argc, char *argv[]) {
   }
 }
 
-void runAdd(uint16_t word) {
-  uint16_t dest = (word & 0b0000111000000000) >> 9;
-  uint16_t left = (word & 0b0000000111000000) >> 6;
+void runAdd(Word word) {
+  Word dest = (word & 0b0000111000000000) >> 9;
+  Word left = (word & 0b0000000111000000) >> 6;
   if (word & 0b0000000000100000) {
-    uint16_t right = word & 0b0000000000011111;
+    Word right = word & 0b0000000000011111;
     std::cout << "Adding " << REGISTERS[left] << " + " << right << std::endl;
     REGISTERS[dest] = REGISTERS[left] + right;
   } else {
-    uint16_t right = word & 0b0000000000000111;
+    Word right = word & 0b0000000000000111;
     std::cout << "Adding " << REGISTERS[left] << " + " << REGISTERS[right]
               << std::endl;
     REGISTERS[dest] = REGISTERS[left] + REGISTERS[right];
   }
 }
 
-void runLd(uint16_t word) {
-  uint16_t dest = (word & 0b0000111000000000) >> 9;
-  uint16_t offset = word & 0b0000000000111111;
+void runBr(Word word) {
+  Word offset = word & 0b0000000111111111;
+  Word n = word & 0b0000100000000000;
+  Word z = word & 0b0000010000000000;
+  Word p = word & 0b0000001000000000;
+  if ((n >> 11) == 1) {
+    PC += offset;
+  } else if ((z >> 10) == 1) {
+    PC += offset;
+  } else if ((p >> 9) == 1) {
+    PC += offset;
+  }
+}
+void runLd(Word word) {
+  Word dest = (word & 0b0000111000000000) >> 9;
+  Word offset = word & 0b0000000000111111;
   std::cout << "Loading " << MEMORY[PC + offset] << " into " << REGISTERS[dest]
             << std::endl;
   REGISTERS[dest] = MEMORY[PC + offset];
 }
-void runLdr(uint16_t word) {
-  uint16_t dest = (word & 0b0000111000000000) >> 9;
-  uint16_t base = (word & 0b0000000111000000) >> 6;
-  uint16_t offset = word & 0b0000000000111111;
+void runLdr(Word word) {
+  Word dest = (word & 0b0000111000000000) >> 9;
+  Word base = (word & 0b0000000111000000) >> 6;
+  Word offset = word & 0b0000000000111111;
   std::cout << "Loading " << MEMORY[REGISTERS[base] + offset] << " into "
             << REGISTERS[dest] << std::endl;
   REGISTERS[dest] = MEMORY[REGISTERS[base] + offset];
 }
-void runLdi(uint16_t word) {
-  uint16_t dest = (word & 0b0000111000000000) >> 9;
-  uint16_t offset = word & 0b0000000111111111;
+void runLdi(Word word) {
+  Word dest = (word & 0b0000111000000000) >> 9;
+  Word offset = word & 0b0000000111111111;
   std::cout << "Loading " << MEMORY[MEMORY[PC + offset]] << " into "
             << REGISTERS[dest] << std::endl;
   REGISTERS[dest] = MEMORY[MEMORY[PC + offset]];
 }
-void runLea(uint16_t word) {
-  uint16_t dest = (word & 0b0000111000000000) >> 9;
-  uint16_t offset = word & 0b0000000111111111;
+void runLea(Word word) {
+  Word dest = (word & 0b0000111000000000) >> 9;
+  Word offset = word & 0b0000000111111111;
   std::cout << "Loading " << PC + offset << " into " << REGISTERS[dest]
             << std::endl;
   REGISTERS[dest] = PC + offset;
 }
-void runSt(uint16_t word) {
-  uint16_t source = (word & 0b0000111000000000) >> 9;
-  uint16_t offset = word & 0b0000000111111111;
+void runSt(Word word) {
+  Word source = (word & 0b0000111000000000) >> 9;
+  Word offset = word & 0b0000000111111111;
   std::cout << "Storing " << REGISTERS[source] << " into "
             << MEMORY[PC + offset] << std::endl;
   MEMORY[PC + offset] = REGISTERS[source];
 }
-void runStr(uint16_t word) {
-  uint16_t source = (word & 0b0000111000000000) >> 9;
-  uint16_t base = (word & 0b0000000111000000) >> 6;
-  uint16_t offset = word & 0b0000000000111111;
+void runStr(Word word) {
+  Word source = (word & 0b0000111000000000) >> 9;
+  Word base = (word & 0b0000000111000000) >> 6;
+  Word offset = word & 0b0000000000111111;
   std::cout << "Storing " << REGISTERS[source] << " into "
             << MEMORY[REGISTERS[base] + offset] << std::endl;
   MEMORY[REGISTERS[base] + offset] = REGISTERS[source];
 }
-void runSti(uint16_t word) {
-  uint16_t source = (word & 0b0000111000000000) >> 9;
-  uint16_t offset = word & 0b0000000111111111;
+void runSti(Word word) {
+  Word source = (word & 0b0000111000000000) >> 9;
+  Word offset = word & 0b0000000111111111;
   std::cout << "Storing " << REGISTERS[source] << " into "
             << MEMORY[MEMORY[PC + offset]] << std::endl;
   MEMORY[MEMORY[PC + offset]] = REGISTERS[source];
 }
-void runJmp(uint16_t word) {
-  uint16_t base = (word & 0b0000000111000000) >> 6;
+void runJmp(Word word) {
+  Word base = (word & 0b0000000111000000) >> 6;
   std::cout << "Jumping to " << REGISTERS[base] << std::endl;
   PC = REGISTERS[base];
 }
-void runJsr(uint16_t word) {
-  uint16_t TMP = PC;
+void runJsr(Word word) {
+  Word TMP = PC;
   if (word & 0b0000100000000000) {
-    uint16_t offset = word & 0b0000011111111111;
+    Word offset = word & 0b0000011111111111;
     PC += offset;
   } else {
-    uint16_t base = (word & 0b0000000111000000) >> 6;
+    Word base = (word & 0b0000000111000000) >> 6;
     std::cout << "Jumping to " << REGISTERS[base] << std::endl;
     PC = REGISTERS[base];
   }
