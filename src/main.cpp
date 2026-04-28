@@ -5,10 +5,10 @@
 #include <iostream>
 #include <iterator>
 #include <ostream>
-#include <system_error>
 #include <vector>
 
 enum {
+  BR = 0,
   ADD = 1,
   LD = 2,
   ST = 3,
@@ -19,15 +19,16 @@ enum {
   STI = 11,
   JMP = 12,
   LEA = 14,
-
 };
 
 using Word = uint16_t;
 
 std::array<Word, 8> REGISTERS;
 int PC = 0;
-std::vector<Word> MEMORY;
 constexpr auto MEMORY_SIZE = 1 << (sizeof(Word) * 8);
+std::vector<Word> MEMORY(MEMORY_SIZE);
+
+void runBr(Word word);
 void runAdd(Word word);
 void runLd(Word word);
 void runLdr(Word word);
@@ -50,7 +51,6 @@ int main(int argc, char *argv[]) {
     };
 
     Word value = 0;
-    MEMORY = std::vector<Word>(MEMORY_SIZE);
     while (program.read(reinterpret_cast<char *>(&value), 2)) {
       MEMORY[PC] = value;
       PC++;
@@ -65,7 +65,11 @@ int main(int argc, char *argv[]) {
         break;
 
       Word word = MEMORY[PC];
+
       switch (word >> 12) {
+      case BR:
+        runBr(word);
+        break;
       case ADD:
         runAdd(word);
         break;
@@ -119,6 +123,19 @@ void runAdd(Word word) {
     std::cout << REGISTERS[dest] << std::endl;
 }
 
+void runBr(Word word) {
+  Word offset = word & 0b0000000111111111;
+  Word n = word & 0b0000100000000000;
+  Word z = word & 0b0000010000000000;
+  Word p = word & 0b0000001000000000;
+  if ((n >> 11) == 1) {
+    PC += offset;
+  } else if ((z >> 10) == 1) {
+    PC += offset;
+  } else if ((p >> 9) == 1) {
+    PC += offset;
+  }
+}
 void runLd(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
   Word offset = word & 0b0000000000111111;
