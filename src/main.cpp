@@ -1,10 +1,14 @@
 #include <array>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <ios>
 #include <iostream>
-#include <iterator>
 #include <ostream>
+#include <stdlib.h>
+#include <termios.h>
+#include <unistd.h>
 #include <vector>
 
 enum {
@@ -16,11 +20,21 @@ enum {
   AND = 5,
   LDR = 6,
   STR = 7,
+  RTI = 8,
   NOT = 9,
   LDI = 10,
   STI = 11,
   JMP = 12,
   LEA = 14,
+  TRAP = 15,
+};
+enum traps {
+  GETC = 0x20,
+  OUT = 0x21,
+  PUTS = 0x22,
+  IN = 0x23,
+  PUTSP = 0x24,
+  HALT = 0x25
 };
 
 using Word = uint16_t;
@@ -30,6 +44,16 @@ int PC = 0;
 int N, Z, P;
 constexpr auto MEMORY_SIZE = 1 << (sizeof(Word) * 8);
 std::vector<Word> MEMORY(MEMORY_SIZE);
+
+struct termios initTermios;
+void disableRawMode() { tcsetattr(STDIN_FILENO, TCSAFLUSH, &initTermios); }
+void enableRawMode() {
+  tcgetattr(STDIN_FILENO, &initTermios);
+  atexit(disableRawMode);
+  struct termios raw = initTermios;
+  raw.c_lflag &= ~(ECHO | ICANON);
+  tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+}
 
 void runBr(Word word);
 void runAdd(Word word);
@@ -44,6 +68,8 @@ void runJmp(Word word);
 void runJsr(Word word);
 void runAnd(Word word);
 void runNot(Word word);
+void runRti(Word word);
+void runTrap(Word word);
 int main(int argc, char *argv[]) {
 
   for (int i = 1; i < argc; i++) {
@@ -65,6 +91,8 @@ int main(int argc, char *argv[]) {
     program.close();
     std::cout << "file closed" << std::endl;
 
+    // ↓ Enabing raw mode if you didnt understand already ↓
+    enableRawMode();
     while (true) {
       if (PC >= MEMORY_SIZE)
         break;
@@ -111,10 +139,18 @@ int main(int argc, char *argv[]) {
       case AND:
         runAnd(word);
         break;
+      case RTI:
+        runRti(word);
+        break;
+      case TRAP:
+        runTrap(word);
+        break;
       }
       PC++;
     }
   }
+  // ↓ Disabling raw mode if you didnt understand already ↓
+  disableRawMode();
 }
 void setcc(Word reg) {
   Word value = REGISTERS[reg];
@@ -250,4 +286,40 @@ void runJsr(Word word) {
     PC = REGISTERS[base];
   }
   REGISTERS[7] = TMP;
+}
+
+void runTrap(Word word) {
+  // HAHA you fell for it
+
+  Word trapVect8 = word & 0b0000000011111111;
+  switch (trapVect8) {
+  case GETC: {
+    char c = getchar();
+    REGISTERS[0] = c;
+    break;
+  }
+  case OUT: {
+    char ch = REGISTERS[0];
+    putc(ch, stdout);
+    break;
+  }
+  case PUTS: {
+    Word *string = &MEMORY[REGISTERS[0]];
+    int i = 0;
+    for (Word c = string[i]; c != 0; i++) {
+      putc(c & 0x00ff, stdout);
+    }
+    break;
+  }
+  case IN: {
+    break;
+  }
+  case PUTSP: {
+    break;
+  }
+  case HALT: {
+    exit(0);
+    break;
+  }
+  }
 }
