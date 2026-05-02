@@ -171,11 +171,12 @@ void runBr(Word word) {
   Word n = word & 0b0000100000000000;
   Word z = word & 0b0000010000000000;
   Word p = word & 0b0000001000000000;
-  if ((n >> 11) == 1) {
+
+  if (n && N) {
     PC += offset;
-  } else if ((z >> 10) == 1) {
+  } else if (z && Z) {
     PC += offset;
-  } else if ((p >> 9) == 1) {
+  } else if (p && P) {
     PC += offset;
   }
 }
