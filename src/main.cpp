@@ -13,8 +13,10 @@ enum {
   LD = 2,
   ST = 3,
   JSR = 4,
+  AND = 5,
   LDR = 6,
   STR = 7,
+  NOT = 9,
   LDI = 10,
   STI = 11,
   JMP = 12,
@@ -25,6 +27,7 @@ using Word = uint16_t;
 
 std::array<Word, 8> REGISTERS;
 int PC = 0;
+int N, Z, P;
 constexpr auto MEMORY_SIZE = 1 << (sizeof(Word) * 8);
 std::vector<Word> MEMORY(MEMORY_SIZE);
 
@@ -39,6 +42,8 @@ void runSti(Word word);
 void runLea(Word word);
 void runJmp(Word word);
 void runJsr(Word word);
+void runAnd(Word word);
+void runNot(Word word);
 int main(int argc, char *argv[]) {
 
   for (int i = 1; i < argc; i++) {
@@ -100,10 +105,47 @@ int main(int argc, char *argv[]) {
       case JSR:
         runJsr(word);
         break;
+      case NOT:
+        runNot(word);
+        break;
+      case AND:
+        runAnd(word);
+        break;
       }
       PC++;
     }
   }
+}
+void setcc(Word reg) {
+  Word value = REGISTERS[reg];
+  N = value < 0;
+  Z = value == 0;
+  P = value > 0;
+}
+void runAnd(Word word) {
+  Word dest = (word & 0b0000111000000000) >> 9;
+  Word left = (word & 0b0000000111000000) >> 6;
+  if (word & 0b0000000000100000) {
+    Word right = word & 0b0000000000011111;
+    std::cout << "And-ing " << REGISTERS[left] << " with " << right
+              << std::endl;
+    REGISTERS[dest] = REGISTERS[left] & right;
+  } else {
+    Word right = word & 0b0000000000000111;
+    std::cout << "And-ing " << REGISTERS[left] << " with " << REGISTERS[right]
+              << std::endl;
+    REGISTERS[dest] = REGISTERS[left] & REGISTERS[right];
+  }
+
+  setcc(dest);
+}
+void runNot(Word word) {
+  Word dest = (word & 0b0000111000000000) >> 9;
+  Word left = (word & 0b0000000111000000) >> 6;
+  std::cout << "Not-ing " << REGISTERS[left] << std::endl;
+  REGISTERS[dest] = ~REGISTERS[left];
+
+  setcc(dest);
 }
 
 void runAdd(Word word) {
@@ -121,6 +163,7 @@ void runAdd(Word word) {
   }
   if (dest == 1)
     std::cout << REGISTERS[dest] << std::endl;
+  setcc(dest);
 }
 
 void runBr(Word word) {
@@ -142,6 +185,7 @@ void runLd(Word word) {
   std::cout << "Loading " << MEMORY[PC + offset] << " into " << REGISTERS[dest]
             << std::endl;
   REGISTERS[dest] = MEMORY[PC + offset];
+  setcc(dest);
 }
 void runLdr(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
@@ -150,6 +194,7 @@ void runLdr(Word word) {
   std::cout << "Loading " << MEMORY[REGISTERS[base] + offset] << " into "
             << REGISTERS[dest] << std::endl;
   REGISTERS[dest] = MEMORY[REGISTERS[base] + offset];
+  setcc(dest);
 }
 void runLdi(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
@@ -157,6 +202,7 @@ void runLdi(Word word) {
   std::cout << "Loading " << MEMORY[MEMORY[PC + offset]] << " into "
             << REGISTERS[dest] << std::endl;
   REGISTERS[dest] = MEMORY[MEMORY[PC + offset]];
+  setcc(dest);
 }
 void runLea(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
