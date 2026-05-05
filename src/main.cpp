@@ -312,9 +312,20 @@ void runTrap(Word word) {
     break;
   }
   case IN: {
+    printf(": ");
+    char c = getchar();
+    printf("%c", c);
+    REGISTERS[0] = c;
+
     break;
   }
   case PUTSP: {
+    Word *string = &MEMORY[REGISTERS[0]];
+    int i = 0;
+    for (Word c = string[i]; c != 0; i++) {
+      putc(c & 0x00ff, stdout);
+      putc(c & 0xff00, stdout);
+    }
     break;
   }
   case HALT: {
