@@ -5,11 +5,16 @@
 #include <fstream>
 #include <ios>
 #include <iostream>
-#include <ostream>
 #include <stdlib.h>
 #include <termios.h>
 #include <unistd.h>
 #include <vector>
+
+#ifdef DEBUG
+#define debug(stuff) std::cerr << (stuff));
+#else
+#define debug(stuff) ;
+#endif // DEBUG
 
 enum {
   BR = 0,
@@ -73,9 +78,9 @@ void runTrap(Word word);
 int main(int argc, char *argv[]) {
 
   for (int i = 1; i < argc; i++) {
-    std::cout << "started for loop" << std::endl;
+    debug("started for loop");
     std::fstream program(argv[i], std::ios::in | std::ios::binary);
-    std::cout << "opening file" << std::endl;
+    debug("opening file");
     if (!program) {
       std::cerr << "Error opening file " << argv[i];
       return 1;
@@ -89,7 +94,7 @@ int main(int argc, char *argv[]) {
 
     PC = 0;
     program.close();
-    std::cout << "file closed" << std::endl;
+    debug("file closed");
 
     // ↓ Enabing raw mode if you didnt understand already ↓
     enableRawMode();
@@ -171,13 +176,11 @@ void runAnd(Word word) {
   Word left = (word & 0b0000000111000000) >> 6;
   if (word & 0b0000000000100000) {
     Word right = Sext(word & 0b0000000000011111, 5);
-    std::cout << "And-ing " << REGISTERS[left] << " with " << right
-              << std::endl;
+    debug("And-ing " << REGISTERS[left] << " with " << right);
     REGISTERS[dest] = REGISTERS[left] & right;
   } else {
     Word right = word & 0b0000000000000111;
-    std::cout << "And-ing " << REGISTERS[left] << " with " << REGISTERS[right]
-              << std::endl;
+    debug("And-ing " << REGISTERS[left] << " with " << REGISTERS[right]);
     REGISTERS[dest] = REGISTERS[left] & REGISTERS[right];
   }
 
@@ -186,7 +189,7 @@ void runAnd(Word word) {
 void runNot(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
   Word left = (word & 0b0000000111000000) >> 6;
-  std::cout << "Not-ing " << REGISTERS[left] << std::endl;
+  debug("Not-ing " << REGISTERS[left]);
   REGISTERS[dest] = ~REGISTERS[left];
 
   setcc(dest);
@@ -197,16 +200,15 @@ void runAdd(Word word) {
   Word left = (word & 0b0000000111000000) >> 6;
   if (word & 0b0000000000100000) {
     Word right = Sext(word & 0b0000000000011111, 5);
-    std::cout << "Adding " << REGISTERS[left] << " + " << right << std::endl;
+    debug("Adding " << REGISTERS[left] << " + " << right);
     REGISTERS[dest] = REGISTERS[left] + right;
   } else {
     Word right = word & 0b0000000000000111;
-    std::cout << "Adding " << REGISTERS[left] << " + " << REGISTERS[right]
-              << std::endl;
+    debug("Adding " << REGISTERS[left] << " + " << REGISTERS[right]);
     REGISTERS[dest] = REGISTERS[left] + REGISTERS[right];
   }
   if (dest == 1)
-    std::cout << REGISTERS[dest] << std::endl;
+    debug(REGISTERS[dest]);
   setcc(dest);
 }
 
@@ -227,8 +229,7 @@ void runBr(Word word) {
 void runLd(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
   Word offset = Sext(word & 0b0000000111111111, 9);
-  std::cout << "Loading " << MEMORY[PC + offset] << " into " << REGISTERS[dest]
-            << std::endl;
+  debug("Loading " << MEMORY[PC + offset] << " into " << REGISTERS[dest]);
   REGISTERS[dest] = MEMORY[PC + offset];
   setcc(dest);
 }
@@ -236,51 +237,49 @@ void runLdr(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
   Word base = (word & 0b0000000111000000) >> 6;
   Word offset = Sext(word & 0b0000000000111111, 6);
-  std::cout << "Loading " << MEMORY[REGISTERS[base] + offset] << " into "
-            << REGISTERS[dest] << std::endl;
+  debug("Loading " << MEMORY[REGISTERS[base] + offset] << " into "
+                   << REGISTERS[dest]);
   REGISTERS[dest] = MEMORY[REGISTERS[base] + offset];
   setcc(dest);
 }
 void runLdi(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
   Word offset = Sext(word & 0b0000000111111111, 9);
-  std::cout << "Loading " << MEMORY[MEMORY[PC + offset]] << " into "
-            << REGISTERS[dest] << std::endl;
+  debug("Loading " << MEMORY[MEMORY[PC + offset]] << " into "
+                   << REGISTERS[dest]);
   REGISTERS[dest] = MEMORY[MEMORY[PC + offset]];
   setcc(dest);
 }
 void runLea(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
   Word offset = Sext(word & 0b0000000111111111, 9);
-  std::cout << "Loading " << PC + offset << " into " << REGISTERS[dest]
-            << std::endl;
+  debug("Loading " << PC + offset << " into " << REGISTERS[dest]);
   REGISTERS[dest] = PC + offset;
 }
 void runSt(Word word) {
   Word source = (word & 0b0000111000000000) >> 9;
   Word offset = Sext(word & 0b0000000111111111, 9);
-  std::cout << "Storing " << REGISTERS[source] << " into "
-            << MEMORY[PC + offset] << std::endl;
+  debug("Storing " << REGISTERS[source] << " into " << MEMORY[PC + offset]);
   MEMORY[PC + offset] = REGISTERS[source];
 }
 void runStr(Word word) {
   Word source = (word & 0b0000111000000000) >> 9;
   Word base = (word & 0b0000000111000000) >> 6;
   Word offset = Sext(word & 0b0000000000111111, 6);
-  std::cout << "Storing " << REGISTERS[source] << " into "
-            << MEMORY[REGISTERS[base] + offset] << std::endl;
+  debug("Storing " << REGISTERS[source] << " into "
+                   << MEMORY[REGISTERS[base] + offset]);
   MEMORY[REGISTERS[base] + offset] = REGISTERS[source];
 }
 void runSti(Word word) {
   Word source = (word & 0b0000111000000000) >> 9;
   Word offset = Sext(word & 0b0000000111111111, 9);
-  std::cout << "Storing " << REGISTERS[source] << " into "
-            << MEMORY[MEMORY[PC + offset]] << std::endl;
+  debug("Storing " << REGISTERS[source] << " into "
+                   << MEMORY[MEMORY[PC + offset]]);
   MEMORY[MEMORY[PC + offset]] = REGISTERS[source];
 }
 void runJmp(Word word) {
   Word base = (word & 0b0000000111000000) >> 6;
-  std::cout << "Jumping to " << REGISTERS[base] << std::endl;
+  debug("Jumping to " << REGISTERS[base]);
   PC = REGISTERS[base];
 }
 void runJsr(Word word) {
@@ -290,7 +289,7 @@ void runJsr(Word word) {
     PC += offset;
   } else {
     Word base = (word & 0b0000000111000000) >> 6;
-    std::cout << "Jumping to " << REGISTERS[base] << std::endl;
+    debug("Jumping to " << REGISTERS[base]);
     PC = REGISTERS[base];
   }
   REGISTERS[7] = TMP;
