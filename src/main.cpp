@@ -301,6 +301,7 @@ void runTrap(Word word) {
   case OUT: {
     char ch = REGISTERS[0];
     putc(ch, stdout);
+    fflush(stdout);
     break;
   }
   case PUTS: {
@@ -309,14 +310,16 @@ void runTrap(Word word) {
     for (Word c = string[i]; c != 0; i++) {
       putc(c & 0x00ff, stdout);
     }
+    fflush(stdout);
     break;
   }
   case IN: {
-    printf(": ");
+    puts(": ");
+    fflush(stdout);
     char c = getchar();
-    printf("%c", c);
+    putc(c, stdout);
+    fflush(stdout);
     REGISTERS[0] = c;
-
     break;
   }
   case PUTSP: {
@@ -326,6 +329,7 @@ void runTrap(Word word) {
       putc(c & 0x00ff, stdout);
       putc(c & 0xff00, stdout);
     }
+    fflush(stdout);
     break;
   }
   case HALT: {
