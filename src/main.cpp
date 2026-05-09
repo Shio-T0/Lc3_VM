@@ -158,11 +158,19 @@ void setcc(Word reg) {
   Z = value == 0;
   P = value > 0;
 }
+Word Sext(Word word, int length) {
+  Word x = (word >> (length - 1)) & 1;
+  if (x == 1) {
+    word |= (0xffff << length);
+  }
+  return word;
+}
+
 void runAnd(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
   Word left = (word & 0b0000000111000000) >> 6;
   if (word & 0b0000000000100000) {
-    Word right = word & 0b0000000000011111;
+    Word right = Sext(word & 0b0000000000011111, 5);
     std::cout << "And-ing " << REGISTERS[left] << " with " << right
               << std::endl;
     REGISTERS[dest] = REGISTERS[left] & right;
@@ -188,7 +196,7 @@ void runAdd(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
   Word left = (word & 0b0000000111000000) >> 6;
   if (word & 0b0000000000100000) {
-    Word right = word & 0b0000000000011111;
+    Word right = Sext(word & 0b0000000000011111, 5);
     std::cout << "Adding " << REGISTERS[left] << " + " << right << std::endl;
     REGISTERS[dest] = REGISTERS[left] + right;
   } else {
@@ -203,7 +211,7 @@ void runAdd(Word word) {
 }
 
 void runBr(Word word) {
-  Word offset = word & 0b0000000111111111;
+  Word offset = Sext(word & 0b0000000111111111, 9);
   Word n = word & 0b0000100000000000;
   Word z = word & 0b0000010000000000;
   Word p = word & 0b0000001000000000;
@@ -218,7 +226,7 @@ void runBr(Word word) {
 }
 void runLd(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
-  Word offset = word & 0b0000000000111111;
+  Word offset = Sext(word & 0b0000000111111111, 9);
   std::cout << "Loading " << MEMORY[PC + offset] << " into " << REGISTERS[dest]
             << std::endl;
   REGISTERS[dest] = MEMORY[PC + offset];
@@ -227,7 +235,7 @@ void runLd(Word word) {
 void runLdr(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
   Word base = (word & 0b0000000111000000) >> 6;
-  Word offset = word & 0b0000000000111111;
+  Word offset = Sext(word & 0b0000000000111111, 6);
   std::cout << "Loading " << MEMORY[REGISTERS[base] + offset] << " into "
             << REGISTERS[dest] << std::endl;
   REGISTERS[dest] = MEMORY[REGISTERS[base] + offset];
@@ -235,7 +243,7 @@ void runLdr(Word word) {
 }
 void runLdi(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
-  Word offset = word & 0b0000000111111111;
+  Word offset = Sext(word & 0b0000000111111111, 9);
   std::cout << "Loading " << MEMORY[MEMORY[PC + offset]] << " into "
             << REGISTERS[dest] << std::endl;
   REGISTERS[dest] = MEMORY[MEMORY[PC + offset]];
@@ -243,14 +251,14 @@ void runLdi(Word word) {
 }
 void runLea(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
-  Word offset = word & 0b0000000111111111;
+  Word offset = Sext(word & 0b0000000111111111, 9);
   std::cout << "Loading " << PC + offset << " into " << REGISTERS[dest]
             << std::endl;
   REGISTERS[dest] = PC + offset;
 }
 void runSt(Word word) {
   Word source = (word & 0b0000111000000000) >> 9;
-  Word offset = word & 0b0000000111111111;
+  Word offset = Sext(word & 0b0000000111111111, 9);
   std::cout << "Storing " << REGISTERS[source] << " into "
             << MEMORY[PC + offset] << std::endl;
   MEMORY[PC + offset] = REGISTERS[source];
@@ -258,14 +266,14 @@ void runSt(Word word) {
 void runStr(Word word) {
   Word source = (word & 0b0000111000000000) >> 9;
   Word base = (word & 0b0000000111000000) >> 6;
-  Word offset = word & 0b0000000000111111;
+  Word offset = Sext(word & 0b0000000000111111, 6);
   std::cout << "Storing " << REGISTERS[source] << " into "
             << MEMORY[REGISTERS[base] + offset] << std::endl;
   MEMORY[REGISTERS[base] + offset] = REGISTERS[source];
 }
 void runSti(Word word) {
   Word source = (word & 0b0000111000000000) >> 9;
-  Word offset = word & 0b0000000111111111;
+  Word offset = Sext(word & 0b0000000111111111, 9);
   std::cout << "Storing " << REGISTERS[source] << " into "
             << MEMORY[MEMORY[PC + offset]] << std::endl;
   MEMORY[MEMORY[PC + offset]] = REGISTERS[source];
@@ -278,7 +286,7 @@ void runJmp(Word word) {
 void runJsr(Word word) {
   Word TMP = PC;
   if (word & 0b0000100000000000) {
-    Word offset = word & 0b0000011111111111;
+    Word offset = Sext(word & 0b0000011111111111, 11);
     PC += offset;
   } else {
     Word base = (word & 0b0000000111000000) >> 6;
