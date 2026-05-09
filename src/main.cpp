@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <endian.h>
 #include <fstream>
 #include <ios>
 #include <iostream>
@@ -11,11 +12,10 @@
 #include <vector>
 
 #ifdef DEBUG
-#define debug(stuff) std::cerr << (stuff));
+#define debug(stuff) std::cerr << stuff << std::endl;
 #else
 #define debug(stuff) ;
 #endif // DEBUG
-
 enum {
   BR = 0,
   ADD = 1,
@@ -73,7 +73,7 @@ void runJmp(Word word);
 void runJsr(Word word);
 void runAnd(Word word);
 void runNot(Word word);
-void runRti(Word word);
+// void runRti(Word word);
 void runTrap(Word word);
 int main(int argc, char *argv[]) {
 
@@ -86,23 +86,28 @@ int main(int argc, char *argv[]) {
       return 1;
     };
 
+    Word origin;
+    program.read(reinterpret_cast<char *>(&origin), 2);
+    origin = be16toh(origin);
+    PC = origin;
     Word value = 0;
     while (program.read(reinterpret_cast<char *>(&value), 2)) {
-      MEMORY[PC] = value;
+      MEMORY[PC] = be16toh(value);
       PC++;
     }
 
-    PC = 0;
     program.close();
     debug("file closed");
 
     // ↓ Enabing raw mode if you didnt understand already ↓
     enableRawMode();
+    PC = origin;
     while (true) {
       if (PC >= MEMORY_SIZE)
         break;
 
       Word word = MEMORY[PC];
+      PC++;
 
       switch (word >> 12) {
       case BR:
@@ -144,14 +149,10 @@ int main(int argc, char *argv[]) {
       case AND:
         runAnd(word);
         break;
-      case RTI:
-        runRti(word);
-        break;
       case TRAP:
         runTrap(word);
         break;
       }
-      PC++;
     }
   }
   // ↓ Disabling raw mode if you didnt understand already ↓
@@ -229,7 +230,7 @@ void runBr(Word word) {
 void runLd(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
   Word offset = Sext(word & 0b0000000111111111, 9);
-  debug("Loading " << MEMORY[PC + offset] << " into " << REGISTERS[dest]);
+  debug("LD-ing " << MEMORY[PC + offset] << " into " << REGISTERS[dest]);
   REGISTERS[dest] = MEMORY[PC + offset];
   setcc(dest);
 }
@@ -237,7 +238,7 @@ void runLdr(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
   Word base = (word & 0b0000000111000000) >> 6;
   Word offset = Sext(word & 0b0000000000111111, 6);
-  debug("Loading " << MEMORY[REGISTERS[base] + offset] << " into "
+  debug("LDR-ing " << MEMORY[REGISTERS[base] + offset] << " into "
                    << REGISTERS[dest]);
   REGISTERS[dest] = MEMORY[REGISTERS[base] + offset];
   setcc(dest);
@@ -245,7 +246,7 @@ void runLdr(Word word) {
 void runLdi(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
   Word offset = Sext(word & 0b0000000111111111, 9);
-  debug("Loading " << MEMORY[MEMORY[PC + offset]] << " into "
+  debug("LDI-ing " << MEMORY[MEMORY[PC + offset]] << " into "
                    << REGISTERS[dest]);
   REGISTERS[dest] = MEMORY[MEMORY[PC + offset]];
   setcc(dest);
@@ -253,7 +254,7 @@ void runLdi(Word word) {
 void runLea(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
   Word offset = Sext(word & 0b0000000111111111, 9);
-  debug("Loading " << PC + offset << " into " << REGISTERS[dest]);
+  debug("LEA-ing " << PC + offset << " into " << REGISTERS[dest]);
   REGISTERS[dest] = PC + offset;
 }
 void runSt(Word word) {
@@ -313,8 +314,9 @@ void runTrap(Word word) {
   }
   case PUTS: {
     Word *string = &MEMORY[REGISTERS[0]];
-    int i = 0;
-    for (Word c = string[i]; c != 0; i++) {
+    Word c = string[0];
+    for (int i = 0; c != 0; i++) {
+      c = string[i];
       putc(c & 0x00ff, stdout);
     }
     fflush(stdout);
@@ -331,8 +333,9 @@ void runTrap(Word word) {
   }
   case PUTSP: {
     Word *string = &MEMORY[REGISTERS[0]];
-    int i = 0;
-    for (Word c = string[i]; c != 0; i++) {
+    Word c = string[0];
+    for (int i = 0; c != 0; i++) {
+      c = string[i];
       putc(c & 0x00ff, stdout);
       putc(c & 0xff00, stdout);
     }
