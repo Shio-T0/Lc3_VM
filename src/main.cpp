@@ -43,6 +43,7 @@ enum traps {
 };
 
 using Word = uint16_t;
+using SWord = int16_t;
 
 std::array<Word, 8> REGISTERS;
 int PC = 0;
@@ -164,8 +165,8 @@ void setcc(Word reg) {
   Z = value == 0;
   P = value > 0;
 }
-Word Sext(Word word, int length) {
-  Word x = (word >> (length - 1)) & 1;
+SWord Sext(Word word, int length) {
+  SWord x = (word >> (length - 1)) & 1;
   if (x == 1) {
     word |= (0xffff << length);
   }
@@ -214,7 +215,7 @@ void runAdd(Word word) {
 }
 
 void runBr(Word word) {
-  Word offset = Sext(word & 0b0000000111111111, 9);
+  SWord offset = Sext(word & 0b0000000111111111, 9);
   Word n = word & 0b0000100000000000;
   Word z = word & 0b0000010000000000;
   Word p = word & 0b0000001000000000;
@@ -229,53 +230,50 @@ void runBr(Word word) {
 }
 void runLd(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
-  Word offset = Sext(word & 0b0000000111111111, 9);
-  debug("LD-ing " << MEMORY[PC + offset] << " into " << REGISTERS[dest]);
+  SWord offset = Sext(word & 0b0000000111111111, 9);
+  debug("LD-ing " << MEMORY[PC + offset] << " into reg" << dest);
   REGISTERS[dest] = MEMORY[PC + offset];
   setcc(dest);
 }
 void runLdr(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
   Word base = (word & 0b0000000111000000) >> 6;
-  Word offset = Sext(word & 0b0000000000111111, 6);
-  debug("LDR-ing " << MEMORY[REGISTERS[base] + offset] << " into "
-                   << REGISTERS[dest]);
+  SWord offset = Sext(word & 0b0000000000111111, 6);
+  debug("LDR-ing " << MEMORY[REGISTERS[base] + offset] << " into reg" << dest);
   REGISTERS[dest] = MEMORY[REGISTERS[base] + offset];
   setcc(dest);
 }
 void runLdi(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
-  Word offset = Sext(word & 0b0000000111111111, 9);
-  debug("LDI-ing " << MEMORY[MEMORY[PC + offset]] << " into "
-                   << REGISTERS[dest]);
+  SWord offset = Sext(word & 0b0000000111111111, 9);
+  debug("LDI-ing " << MEMORY[MEMORY[PC + offset]] << " into reg" << dest);
   REGISTERS[dest] = MEMORY[MEMORY[PC + offset]];
   setcc(dest);
 }
 void runLea(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
-  Word offset = Sext(word & 0b0000000111111111, 9);
-  debug("LEA-ing " << PC + offset << " into " << REGISTERS[dest]);
+  SWord offset = Sext(word & 0b0000000111111111, 9);
+  debug("LEA-ing " << PC + offset << " into reg" << dest);
   REGISTERS[dest] = PC + offset;
 }
 void runSt(Word word) {
   Word source = (word & 0b0000111000000000) >> 9;
-  Word offset = Sext(word & 0b0000000111111111, 9);
-  debug("Storing " << REGISTERS[source] << " into " << MEMORY[PC + offset]);
+  SWord offset = Sext(word & 0b0000000111111111, 9);
+  debug("Storing " << REGISTERS[source] << " into mem" << PC + offset);
   MEMORY[PC + offset] = REGISTERS[source];
 }
 void runStr(Word word) {
   Word source = (word & 0b0000111000000000) >> 9;
   Word base = (word & 0b0000000111000000) >> 6;
-  Word offset = Sext(word & 0b0000000000111111, 6);
-  debug("Storing " << REGISTERS[source] << " into "
-                   << MEMORY[REGISTERS[base] + offset]);
+  SWord offset = Sext((word & 0b0000000000111111), 6);
+  debug("Storing " << REGISTERS[source] << " into mem"
+                   << REGISTERS[base] + offset);
   MEMORY[REGISTERS[base] + offset] = REGISTERS[source];
 }
 void runSti(Word word) {
   Word source = (word & 0b0000111000000000) >> 9;
-  Word offset = Sext(word & 0b0000000111111111, 9);
-  debug("Storing " << REGISTERS[source] << " into "
-                   << MEMORY[MEMORY[PC + offset]]);
+  SWord offset = Sext(word & 0b0000000111111111, 9);
+  debug("Storing " << REGISTERS[source] << " into mem" << MEMORY[PC + offset]);
   MEMORY[MEMORY[PC + offset]] = REGISTERS[source];
 }
 void runJmp(Word word) {
@@ -286,7 +284,7 @@ void runJmp(Word word) {
 void runJsr(Word word) {
   Word TMP = PC;
   if (word & 0b0000100000000000) {
-    Word offset = Sext(word & 0b0000011111111111, 11);
+    SWord offset = Sext(word & 0b0000011111111111, 11);
     PC += offset;
   } else {
     Word base = (word & 0b0000000111000000) >> 6;
@@ -300,6 +298,7 @@ void runTrap(Word word) {
   // HAHA you fell for it
 
   Word trapVect8 = word & 0b0000000011111111;
+  debug("Trapping " << trapVect8);
   switch (trapVect8) {
   case GETC: {
     char c = getchar();
