@@ -93,6 +93,9 @@ int main(int argc, char *argv[]) {
     PC = origin;
     Word value = 0;
     while (program.read(reinterpret_cast<char *>(&value), 2)) {
+      if (be16toh(value) == 0xf020) {
+        debug("Found it in PC=" << PC);
+      }
       MEMORY[PC] = be16toh(value);
       PC++;
     }
@@ -259,36 +262,37 @@ void runLea(Word word) {
 void runSt(Word word) {
   Word source = (word & 0b0000111000000000) >> 9;
   SWord offset = Sext(word & 0b0000000111111111, 9);
-  debug("Storing " << REGISTERS[source] << " into mem" << PC + offset);
+  debug("ST-ing " << REGISTERS[source] << " into mem" << PC + offset);
   MEMORY[PC + offset] = REGISTERS[source];
 }
 void runStr(Word word) {
   Word source = (word & 0b0000111000000000) >> 9;
   Word base = (word & 0b0000000111000000) >> 6;
   SWord offset = Sext((word & 0b0000000000111111), 6);
-  debug("Storing " << REGISTERS[source] << " into mem"
+  debug("STR-ing " << REGISTERS[source] << " into mem"
                    << REGISTERS[base] + offset);
   MEMORY[REGISTERS[base] + offset] = REGISTERS[source];
 }
 void runSti(Word word) {
   Word source = (word & 0b0000111000000000) >> 9;
   SWord offset = Sext(word & 0b0000000111111111, 9);
-  debug("Storing " << REGISTERS[source] << " into mem" << MEMORY[PC + offset]);
+  debug("STI-ing " << REGISTERS[source] << " into mem" << MEMORY[PC + offset]);
   MEMORY[MEMORY[PC + offset]] = REGISTERS[source];
 }
 void runJmp(Word word) {
   Word base = (word & 0b0000000111000000) >> 6;
-  debug("Jumping to " << REGISTERS[base]);
+  debug("JMP-ing to " << REGISTERS[base]);
   PC = REGISTERS[base];
 }
 void runJsr(Word word) {
   Word TMP = PC;
   if (word & 0b0000100000000000) {
     SWord offset = Sext(word & 0b0000011111111111, 11);
+    debug("JSR-ing to " << PC + offset);
     PC += offset;
   } else {
     Word base = (word & 0b0000000111000000) >> 6;
-    debug("Jumping to " << REGISTERS[base]);
+    debug("JSR-ing to " << REGISTERS[base]);
     PC = REGISTERS[base];
   }
   REGISTERS[7] = TMP;
