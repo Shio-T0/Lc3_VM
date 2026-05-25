@@ -301,7 +301,7 @@ void runSti(Word word) {
   Word source = (word & 0b0000111000000000) >> 9;
   SWord offset = Sext(word & 0b0000000111111111, 9);
   debug("STI-ing " << REGISTERS[source] << " into mem" << MEMORY[PC + offset]);
-  MEMORY[MEMORY[PC + offset]] = REGISTERS[source];
+  MEMORY[read_mem(PC + offset)] = REGISTERS[source];
 }
 void runJmp(Word word) {
   Word base = (word & 0b0000000111000000) >> 6;
