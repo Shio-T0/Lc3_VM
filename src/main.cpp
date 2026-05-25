@@ -7,6 +7,7 @@
 #include <ios>
 #include <iostream>
 #include <stdlib.h>
+#include <sys/select.h>
 #include <termios.h>
 #include <unistd.h>
 #include <vector>
@@ -16,6 +17,8 @@
 #else
 #define debug(stuff) ;
 #endif // DEBUG
+
+enum mem_map_reg { KBSR = 0xfe00, KBDR = 0xfe02 };
 enum {
   BR = 0,
   ADD = 1,
@@ -60,6 +63,26 @@ void enableRawMode() {
   raw.c_lflag &= ~(ECHO | ICANON);
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
+Word check_key() {
+  fd_set fd;
+  FD_ZERO(&fd);
+  FD_SET(STDIN_FILENO, &fd);
+  struct timeval timeout = {.tv_sec = 0, .tv_usec = 0};
+  return select(1, &fd, NULL, NULL, &timeout) != 0;
+}
+
+Word read_mem(Word addr) {
+  if (addr == KBSR) {
+    if (check_key()) {
+      MEMORY[KBSR] = (1 << 15);
+      MEMORY[KBDR] = getchar();
+      debug("User pressed " << MEMORY[KBDR]);
+    } else {
+      MEMORY[KBSR] = 0;
+    }
+  }
+  return MEMORY[addr];
+};
 
 void runBr(Word word);
 void runAdd(Word word);
@@ -205,16 +228,16 @@ void runAdd(Word word) {
   Word left = (word & 0b0000000111000000) >> 6;
   if (word & 0b0000000000100000) {
     Word right = Sext(word & 0b0000000000011111, 5);
-    debug("Adding " << REGISTERS[left] << " + " << right);
+    //    debug("Adding " << REGISTERS[left] << " + " << right);
     REGISTERS[dest] = REGISTERS[left] + right;
   } else {
     Word right = word & 0b0000000000000111;
-    debug("Adding " << REGISTERS[left] << " + " << REGISTERS[right]);
+    //    debug("Adding " << REGISTERS[left] << " + " << REGISTERS[right]);
     REGISTERS[dest] = REGISTERS[left] + REGISTERS[right];
   }
   if (dest == 1)
-    debug(REGISTERS[dest]);
-  setcc(dest);
+    //    debug(REGISTERS[dest]);
+    setcc(dest);
 }
 
 void runBr(Word word) {
@@ -234,29 +257,30 @@ void runBr(Word word) {
 void runLd(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
   SWord offset = Sext(word & 0b0000000111111111, 9);
-  debug("LD-ing " << MEMORY[PC + offset] << " into reg" << dest);
-  REGISTERS[dest] = MEMORY[PC + offset];
+  //  debug("LD-ing " << MEMORY[PC + offset] << " into reg" << dest);
+  REGISTERS[dest] = read_mem(PC + offset);
   setcc(dest);
 }
 void runLdr(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
   Word base = (word & 0b0000000111000000) >> 6;
   SWord offset = Sext(word & 0b0000000000111111, 6);
-  debug("LDR-ing " << MEMORY[REGISTERS[base] + offset] << " into reg" << dest);
-  REGISTERS[dest] = MEMORY[REGISTERS[base] + offset];
+  //  debug("LDR-ing " << MEMORY[REGISTERS[base] + offset] << " into reg" <<
+  //  dest);
+  REGISTERS[dest] = read_mem(REGISTERS[base] + offset);
   setcc(dest);
 }
 void runLdi(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
   SWord offset = Sext(word & 0b0000000111111111, 9);
-  debug("LDI-ing " << MEMORY[MEMORY[PC + offset]] << " into reg" << dest);
-  REGISTERS[dest] = MEMORY[MEMORY[PC + offset]];
+  //  debug("LDI-ing " << MEMORY[MEMORY[PC + offset]] << " into reg" << dest);
+  REGISTERS[dest] = read_mem(read_mem(PC + offset));
   setcc(dest);
 }
 void runLea(Word word) {
   Word dest = (word & 0b0000111000000000) >> 9;
   SWord offset = Sext(word & 0b0000000111111111, 9);
-  debug("LEA-ing " << PC + offset << " into reg" << dest);
+  //  debug("LEA-ing " << PC + offset << " into reg" << dest);
   REGISTERS[dest] = PC + offset;
 }
 void runSt(Word word) {
