@@ -312,11 +312,11 @@ void runJsr(Word word) {
   Word TMP = PC;
   if (word & 0b0000100000000000) {
     SWord offset = Sext(word & 0b0000011111111111, 11);
-    debug("JSR-ing to " << PC + offset);
+    debug("JSR-ing from mem" << PC << " to mem" << PC + offset);
     PC += offset;
   } else {
     Word base = (word & 0b0000000111000000) >> 6;
-    debug("JSR-ing to " << REGISTERS[base]);
+    debug("JSR-ing from mem" << PC << " to mem" << REGISTERS[base]);
     PC = REGISTERS[base];
   }
   REGISTERS[7] = TMP;
@@ -342,6 +342,8 @@ void runTrap(Word word) {
   case PUTS: {
     Word *string = &MEMORY[REGISTERS[0]];
     Word c = string[0];
+    // Maybe its sliding further that it should or staying behind? 1 byte that
+    // is
     for (int i = 0; c != 0; i++) {
       c = string[i];
       putc(c & 0x00ff, stdout);
