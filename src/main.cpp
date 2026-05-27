@@ -185,18 +185,18 @@ int main(int argc, char *argv[]) {
   // ↓ Disabling raw mode if you didnt understand already ↓
   disableRawMode();
 }
-void setcc(Word reg) {
-  Word value = REGISTERS[reg];
-  N = value < 0;
-  Z = value == 0;
-  P = value > 0;
-}
 SWord Sext(Word word, int length) {
   SWord x = (word >> (length - 1)) & 1;
   if (x == 1) {
     word |= (0xffff << length);
   }
   return word;
+}
+void setcc(Word reg) {
+  SWord value = Sext(REGISTERS[reg], 16);
+  N = value < 0;
+  Z = value == 0;
+  P = value > 0;
 }
 
 void runAnd(Word word) {
@@ -235,9 +235,7 @@ void runAdd(Word word) {
     //    debug("Adding " << REGISTERS[left] << " + " << REGISTERS[right]);
     REGISTERS[dest] = REGISTERS[left] + REGISTERS[right];
   }
-  if (dest == 1)
-    //    debug(REGISTERS[dest]);
-    setcc(dest);
+  setcc(dest);
 }
 
 void runBr(Word word) {
@@ -246,11 +244,7 @@ void runBr(Word word) {
   Word z = word & 0b0000010000000000;
   Word p = word & 0b0000001000000000;
 
-  if (n && N) {
-    PC += offset;
-  } else if (z && Z) {
-    PC += offset;
-  } else if (p && P) {
+  if ((n && N) || (z && Z) || (p && P)) {
     PC += offset;
   }
 }
